@@ -19,3 +19,13 @@
         password: "{{ pass }}" 
         commands: 
           - clear port-security sticky interface {{ interface }}
+          
+    - name: run a command that clears mac-address
+      ios_command:
+        host: "{{ ansible_host }}"
+        username: "{{ user }}"
+        password: "{{ pass }}" 
+        commands: 
+          - clear port-security sticky address {{ mac | hwaddr('cisco') }}
+      when: mac is defined
+      
