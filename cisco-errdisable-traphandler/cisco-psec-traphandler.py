@@ -209,7 +209,7 @@ if mode is "disable":
 
 elif mode is "restrict":
     ifName = traplist[7].strip('"')
-    mac = ':'.join(traplist[-7:-2]).strip('"')
+    mac = ':'.join(traplist[-7:-1]).strip('"')
     logging.info("ifName = %s; mac = %s", ifName, mac)
     
 
