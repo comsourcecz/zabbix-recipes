@@ -27,17 +27,6 @@ IF-MIB::ifName.10028 FastEthernet0/28
 CISCO-PORT-SECURITY-MIB::cpsIfSecureLastMacAddress.10028 0:21:85:58:7e:d9
 ------------------------------------------------------------------
 
-BTW there is another trap exists but this is left for a future implementation
-------------------------------------------------------------------
-catalyst22
-UDP: [0.0.0.0]->[192.168.30.22]:-11723
-DISMAN-EVENT-MIB::sysUpTimeInstance 3:55:03.20
-SNMPv2-MIB::snmpTrapOID.0 CISCO-PORT-SECURITY-MIB::cpsTrunkSecureMacAddrViolation
-IF-MIB::ifName.10002 FastEthernet0/2
-CISCO-VTP-MIB::vtpVlanName.1.64 PRINTERS
-CISCO-PORT-SECURITY-MIB::cpsIfSecureLastMacAddress.10002 0:15:99:64:f5:2f
-------------------------------------------------------------------
-
 script first checks if hostname exists in Zabbix (using ZabbixAPI)
 and that hostname has an item with the key that match a trapkeyname_ (defined in a config.ini)
  
@@ -53,7 +42,6 @@ import ipaddress, logging.handlers, shlex
 from pysnmp.hlapi import *
 from configparser import ConfigParser
 from zabbix.api import ZabbixAPI
-#from mysql.connector import MySQLConnection, Error
 
 def read_config(filename, section):
     """ Read a configuration file and return a dictionary object
