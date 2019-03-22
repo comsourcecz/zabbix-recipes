@@ -1,0 +1,6 @@
+configparser>=3.5.0
+ipaddress>=1.0.16
+py-zabbix>=1.1.3
+pysmi>=0.1.3
+pysnmp>=4.3.7
+pysnmp-mibs>=0.1.6
