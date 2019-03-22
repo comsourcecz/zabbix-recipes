@@ -1,14 +1,22 @@
 #!/usr/bin/env python
 """
-the script is a traphandler that is being called from an snmptrapd daemon
-script does process snmp err-disable traps from cisco gears and hand it over to Zabbix.
-Traps comes from snmptrapd in one of the following formats:
+the script is a traphandler that is being called from snmptrapd daemon
+The script does process port security snmp traps from cisco gears and hand it over to Zabbix.
+There are two types of psecurity traps that depends on psecurity violation mode: shutdown or restrict
+The trap iso.3.6.1.4.1.9.9.548.0.1.1 (CISCO-ERR-DISABLE-MIB::cErrDisableInterfaceEvent) is sent for a violation of shutdown
+The trap iso.3.6.1.4.1.9.9.315.0.0.1 (ciscoPortSecurityMIB::cpsSecureMacAddrViolation ) is sent for a violation of restrict
+will call them trap 548 and trap 315 for a sake of clarity 
+
+this is an example of trap 548
 ------------------------------------------------------------------
 catalyst20
 UDP: [0.0.0.0]->[192.168.30.20]:-2039
 DISMAN-EVENT-MIB::sysUpTimeInstance 338:5:51:38.08
 SNMPv2-MIB::snmpTrapOID.0 CISCO-SMI::ciscoMgmt.548.0.1.1
 CISCO-SMI::ciscoMgmt.548.1.3.1.1.2.10640.0 9
+------------------------------------------------------------------
+
+and this one is an example of trap 315
 ------------------------------------------------------------------
 catalyst27
 UDP: [0.0.0.0]->[192.168.30.27]:-13209
@@ -17,6 +25,9 @@ SNMPv2-MIB::snmpTrapOID.0 CISCO-PORT-SECURITY-MIB::cpsSecureMacAddrViolation
 IF-MIB::ifIndex.10028 Wrong Type (should be INTEGER): 10028
 IF-MIB::ifName.10028 FastEthernet0/28
 CISCO-PORT-SECURITY-MIB::cpsIfSecureLastMacAddress.10028 0:21:85:58:7e:d9
+------------------------------------------------------------------
+
+BTW there is another trap exists but this is left for a future implementation
 ------------------------------------------------------------------
 catalyst22
 UDP: [0.0.0.0]->[192.168.30.22]:-11723
@@ -28,9 +39,13 @@ CISCO-PORT-SECURITY-MIB::cpsIfSecureLastMacAddress.10002 0:15:99:64:f5:2f
 ------------------------------------------------------------------
 
 script first checks if hostname exists in Zabbix (using ZabbixAPI)
-second it finds the key that handles traps (defined in a trapkeyname config option)
-then convert ifIndex (10640 in the first example above) to ifName by issuing an snmp query toward the catalyst
-and finally puts ifName and key parameters to the given host using external zabbix_sender calls 
+and that hostname has an item with the key that match a trapkeyname_ (defined in a config.ini)
+ 
+then it processes traps
+for trap 548 it finds out the interface name out of ifIndex (10640 in the first example above) by issuing an snmp query toward the switch.
+for trap 315 it retrieves ifName and mac-address
+
+and finally it sends new value (ifName or ifName + mac-address) to the given host and the corresponding key using external zabbix_sender call
 """
 
 import sys, os, re, subprocess
@@ -88,9 +103,11 @@ snmp_config = read_config(conf_file_name, section = 'snmp')
 api_config = read_config(conf_file_name, section = 'api')
 logging_config = read_config(conf_file_name, section = 'logging')
 zabbix_config = read_config(conf_file_name, section='zabbix')
+#db_config = read_config(section = 'mysql')
 
 # set logging handler
 handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", logging_config['logfile']))
+#formatter = logging.Formatter(logging.BASIC_FORMAT)
 formatter = logging.Formatter( '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 root = logging.getLogger()
@@ -121,6 +138,18 @@ logging.debug("hostname is: %s", hostname)
 logging.debug("IP address is: %s", ip)
 logging.debug("trap info is: %s", trapstr)
 
+if "548.0.1.1" in trapstr:
+    mode = "disable"
+    trapkeyname = "trapkeyname_disable"
+
+elif "315.0.0.1" in trapstr:
+    mode = "restrict"
+    trapkeyname = "trapkeyname_restrict"
+    
+else:
+    logging.error("Unknown trap. Discarding ...")
+    exit(1)
+
 logging.debug("api_config: %s, %s, %si", api_config['zabbix_url'], api_config['zabbix_user'], api_config['zabbix_passwd'])
 
 # using ZabbixAPI check if a hostname and a corresponding item exists
@@ -147,7 +176,8 @@ if not hostid:
 
 logging.info("hostid = %s", hostid)
 
-res = z.item.get(hostids=hostid, search={'key_':zabbix_config['trapkeyname']}, output=['itemid','name', 'key_'])
+
+res = z.item.get(hostids=hostid, search={'key_':zabbix_config[trapkeyname]}, output=['itemid','name', 'key_'])
 if not res:
     logging.error("there is no suitable items for hostname %s in Zabbix. Discarding trap...", hostname)
     exit(1)
@@ -155,29 +185,37 @@ if not res:
 key = res[0]['key_']
 logging.debug("keyname = %s", key)
 
-
-# Now lets find an interface name (ifName)
-# retrieve trapkey and trapvalue elements from a trapvalue string
-# for SNMPv2-MIB::snmpTrapOID type traps they seems to be always 3rd and penultimate words respectively
+# now parsing the trap information
 traplist = trapstr.split()
-trapkey = traplist[3]
-trapvalue = traplist[-2]
-logging.debug("trapkey = %s", trapkey)
-logging.debug("trapvalue = %s", trapvalue)
 
-# fetch ifindex from a trapvalue by splitting trapvalue with dots "." into a list and taking a penultimate list value
-ifIndex = trapvalue.split(".")[-2]
-logging.debug("ifIndex = %s", ifIndex)
+if mode is "disable":
+    # Now lets find an interface name (ifName)
+    # retrieve trapkey and trapvalue elements from a trapvalue string
+    # for SNMPv2-MIB::snmpTrapOID type traps they seems to be always 3rd and penultimate words respectively
+    trapkey = traplist[3]
+    trapvalue = traplist[-2]
+    logging.debug("trapkey = %s", trapkey)
+    logging.debug("trapvalue = %s", trapvalue)
 
-# find ifName by ifIndex
-logging.debug("snmp community = %s", snmp_config['community'])
+    # fetch ifindex from a trapvalue by splitting trapvalue with dots "." into a list and taking a penultimate list value
+    ifIndex = trapvalue.split(".")[-2]
+    logging.debug("ifIndex = %s", ifIndex)
 
-ifName = find_ifDesc_from_ifIndex(ip, ifIndex, snmp_config['community'])
-logging.info("ifName = %s", ifName)
+    # find ifName by ifIndex
+    logging.debug("snmp community = %s", snmp_config['community'])
+
+    ifName = find_ifDesc_from_ifIndex(ip, ifIndex, snmp_config['community'])
+    logging.info("ifName = %s", ifName)
+
+elif mode is "restrict":
+    ifName = traplist[7].strip('"')
+    mac = ':'.join(traplist[-7:-1]).strip('"')
+    logging.info("ifName = %s; mac = %s", ifName, mac)
+    
 
 if ifName:
     # Zabix has a limitation (20 chars) of lenght of values that are being shown in LastValues and LastIssues sections of a FrontEnd
-    # lets strip ifNames so names like FastEthernet0/2 and GigabitEthernet3/0/45 become Fa0/2 and Gi3/0/45 accordingly
+    # lets strip FastEthernet0/2 to Fa0/2 and GigabitEthernet3/0/45 to Gi3/0/45 for a conviniency
     if (len(ifName) > 20):
         regex = "[A-Za-z]+(\d+\/.*\d+)$"
         m = re.search(regex, ifName)
@@ -189,11 +227,17 @@ else:
     ifName = "Interface"
 
 
-# Now send value ifName for a given hostname and an keyname to Zabbix
-# --zabbix-server ZABBIX_SERVER --port ZABBIX_PORT --host hostname --key keyname --value ifName;
+# Now send value (ifName or iName + mac) for a given hostname and a key to Zabbix
+# --zabbix-server ZABBIX_SERVER --port ZABBIX_PORT --host hostname --key keyname --value keyvalue;
 
 zabbix_sender = zabbix_config['zabbix_sender']
-opt = "--zabbix-server {} --port {} --host {} --key '{}' --value '{}'".format(zabbix_config['server'],zabbix_config['port'], hostname, key, ifName)
+if mode is "disable":
+    keyvalue = ifName
+elif mode is "restrict":
+    keyvalue = ifName + " " + mac   
+
+opt = "--zabbix-server {} --port {} --host {} --key '{}' --value '{}'".format(zabbix_config['server'],zabbix_config['port'], hostname, key, keyvalue)
+
 mycommand = zabbix_sender + " " + opt
 logging.debug("zabbix_sender command: %s", mycommand)
 
@@ -209,4 +253,3 @@ except subprocess.CalledProcessError as e:
 
 retstr = "trap {} from host {} has been handled successfully".format(trapkey, hostname)
 logging.info(retstr)
-

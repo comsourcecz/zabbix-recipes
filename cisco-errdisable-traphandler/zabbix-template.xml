@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>3.4</version>
-    <date>2018-01-16T12:57:23Z</date>
+    <date>2019-01-18T06:51:08Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -9,22 +9,26 @@
     </groups>
     <templates>
         <template>
-            <template>zabbix-template</template>
-            <name>zabbix-template</name>
+            <template>Template_Cisco_PortSecurity</template>
+            <name>Template_Cisco_PortSecurity</name>
             <description/>
             <groups>
                 <group>
                     <name>Templates</name>
                 </group>
             </groups>
-            <applications/>
+            <applications>
+                <application>
+                    <name>Trap</name>
+                </application>
+            </applications>
             <items>
                 <item>
-                    <name>errDisabled trap</name>
+                    <name>PortSecurity Disable trap</name>
                     <type>2</type>
                     <snmp_community/>
                     <snmp_oid/>
-                    <key>ErrDisabled</key>
+                    <key>ErrDisable</key>
                     <delay>0</delay>
                     <history>90d</history>
                     <trends>0</trends>
@@ -49,7 +53,52 @@
                     <port/>
                     <description/>
                     <inventory_link>0</inventory_link>
-                    <applications/>
+                    <applications>
+                        <application>
+                            <name>Trap</name>
+                        </application>
+                    </applications>
+                    <valuemap/>
+                    <logtimefmt/>
+                    <preprocessing/>
+                    <jmx_endpoint/>
+                    <master_item/>
+                </item>
+                <item>
+                    <name>PortSecurity Restrict trap</name>
+                    <type>2</type>
+                    <snmp_community/>
+                    <snmp_oid/>
+                    <key>ErrRestrict</key>
+                    <delay>0</delay>
+                    <history>90d</history>
+                    <trends>0</trends>
+                    <status>0</status>
+                    <value_type>4</value_type>
+                    <allowed_hosts/>
+                    <units/>
+                    <snmpv3_contextname/>
+                    <snmpv3_securityname/>
+                    <snmpv3_securitylevel>0</snmpv3_securitylevel>
+                    <snmpv3_authprotocol>0</snmpv3_authprotocol>
+                    <snmpv3_authpassphrase/>
+                    <snmpv3_privprotocol>0</snmpv3_privprotocol>
+                    <snmpv3_privpassphrase/>
+                    <params/>
+                    <ipmi_sensor/>
+                    <authtype>0</authtype>
+                    <username/>
+                    <password/>
+                    <publickey/>
+                    <privatekey/>
+                    <port/>
+                    <description/>
+                    <inventory_link>0</inventory_link>
+                    <applications>
+                        <application>
+                            <name>Trap</name>
+                        </application>
+                    </applications>
                     <valuemap/>
                     <logtimefmt/>
                     <preprocessing/>
@@ -66,10 +115,10 @@
     </templates>
     <triggers>
         <trigger>
-            <expression>{zabbix-template:ErrDisabled.nodata(600)}=0</expression>
+            <expression>{Template_Cisco_SW_Traps:ErrDisable.nodata(150)}=0</expression>
             <recovery_mode>0</recovery_mode>
             <recovery_expression/>
-            <name>PortSecurity: {ITEM.LASTVALUE}</name>
+            <name>ErrDisable: {ITEM.LASTVALUE}</name>
             <correlation_mode>0</correlation_mode>
             <correlation_tag/>
             <url/>
@@ -79,8 +128,33 @@
             <type>0</type>
             <manual_close>0</manual_close>
             <dependencies/>
-            <tags/>
+            <tags>
+                <tag>
+                    <tag>portsecurity</tag>
+                    <value/>
+                </tag>
+            </tags>
+        </trigger>
+        <trigger>
+            <expression>{Template_Cisco_SW_Traps:ErrRestrict.nodata(60)}=0</expression>
+            <recovery_mode>0</recovery_mode>
+            <recovery_expression/>
+            <name>ErrRestrict: {ITEM.LASTVALUE}</name>
+            <correlation_mode>0</correlation_mode>
+            <correlation_tag/>
+            <url/>
+            <status>0</status>
+            <priority>4</priority>
+            <description/>
+            <type>0</type>
+            <manual_close>0</manual_close>
+            <dependencies/>
+            <tags>
+                <tag>
+                    <tag>portsecurity</tag>
+                    <value/>
+                </tag>
+            </tags>
         </trigger>
     </triggers>
 </zabbix_export>
-
