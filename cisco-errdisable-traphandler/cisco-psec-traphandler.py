@@ -27,6 +27,17 @@ IF-MIB::ifName.10028 FastEthernet0/28
 CISCO-PORT-SECURITY-MIB::cpsIfSecureLastMacAddress.10028 0:21:85:58:7e:d9
 ------------------------------------------------------------------
 
+BTW there is another trap exists but this is left for a future implementation
+------------------------------------------------------------------
+catalyst22
+UDP: [0.0.0.0]->[192.168.30.22]:-11723
+DISMAN-EVENT-MIB::sysUpTimeInstance 3:55:03.20
+SNMPv2-MIB::snmpTrapOID.0 CISCO-PORT-SECURITY-MIB::cpsTrunkSecureMacAddrViolation
+IF-MIB::ifName.10002 FastEthernet0/2
+CISCO-VTP-MIB::vtpVlanName.1.64 PRINTERS
+CISCO-PORT-SECURITY-MIB::cpsIfSecureLastMacAddress.10002 0:15:99:64:f5:2f
+------------------------------------------------------------------
+
 script first checks if hostname exists in Zabbix (using ZabbixAPI)
 and that hostname has an item with the key that match a trapkeyname_ (defined in a config.ini)
  
@@ -42,6 +53,7 @@ import ipaddress, logging.handlers, shlex
 from pysnmp.hlapi import *
 from configparser import ConfigParser
 from zabbix.api import ZabbixAPI
+#from mysql.connector import MySQLConnection, Error
 
 def read_config(filename, section):
     """ Read a configuration file and return a dictionary object
@@ -177,15 +189,12 @@ logging.debug("keyname = %s", key)
 traplist = trapstr.split()
 
 if mode is "disable":
-    # Now lets find an interface name (ifName)
-    # retrieve trapkey and trapvalue elements from a trapvalue string
-    # for SNMPv2-MIB::snmpTrapOID type traps they seems to be always 3rd and penultimate words respectively
-    trapkey = traplist[3]
+    # Now lets find out an interface name (ifName)
+    # for the errdisable traps it can always be found within a penultimate word
     trapvalue = traplist[-2]
-    logging.debug("trapkey = %s", trapkey)
     logging.debug("trapvalue = %s", trapvalue)
 
-    # fetch ifindex from a trapvalue by splitting trapvalue with dots "." into a list and taking a penultimate list value
+    # now fetch ifindex from a trapvalue by splitting trapvalue with dots "." into a list and taking a penultimate list value
     ifIndex = trapvalue.split(".")[-2]
     logging.debug("ifIndex = %s", ifIndex)
 
@@ -203,7 +212,7 @@ elif mode is "restrict":
 
 if ifName:
     # Zabix has a limitation (20 chars) of lenght of values that are being shown in LastValues and LastIssues sections of a FrontEnd
-    # lets strip FastEthernet0/2 to Fa0/2 and GigabitEthernet3/0/45 to Gi3/0/45 for a conviniency    
+    # lets strip FastEthernet0/2 to Fa0/2 and GigabitEthernet3/0/45 to Gi3/0/45 for a conviniency
     regex = "[A-Za-z]+(\d+\/.*\d+)$"
     m = re.search(regex, ifName)
     if "Gigabit" in ifName:
@@ -238,5 +247,6 @@ except subprocess.CalledProcessError as e:
     logging.error(e)
     exit(1)
 
-retstr = "trap {} from host {} has been handled successfully".format(trapkey, hostname)
+retstr = "portsecurity trap from host {} has been handled successfully".format(hostname)
 logging.info(retstr)
+
