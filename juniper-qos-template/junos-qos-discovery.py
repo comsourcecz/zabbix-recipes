@@ -114,12 +114,12 @@ pattern = re.compile("[gf]e-\d+/\d+/\d+$")
 ifList = [ a for a in ltmp if pattern.match(a[1]) ]
 
 # 4.
-fields = ["ifIndex", "ifName"]
+fields = ["{#IFINDEX}", "{#IFNAME}"]
 ifListDict = [ dict(zip(fields, i)) for i in ifList ]
 
 # 5.
 qlist = snmpwalk(jnxCosFcIdToFcName, hostname, community)
-fields = ["qIndex", "qName"]
+fields = ["{#QINDEX}", "{#QNAME}"]
 QlistDict = [ dict(zip(fields, i)) for i in qlist ]
 
 # 6.
@@ -130,7 +130,7 @@ for d1 in ifListDict:
         d = {}
         d = d1.copy()
         d.update(d2)
-        d["Index"]=index        
+        d["{#INDEX}"]=index        
         qoslist.append(d)
         index+=1
 
