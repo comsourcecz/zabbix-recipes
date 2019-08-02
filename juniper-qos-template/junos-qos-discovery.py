@@ -109,7 +109,9 @@ iflist = snmpwalk(jnxCosIfstatFlags, hostname, community)
 ltmp = [ (a[0],str(find_ifDesc_from_ifIndex(hostname, a[0], community))) for a in iflist ]
 
 # 3. 
-ifList = [ a for a in ltmp if "." not in a[1] ]
+import re
+pattern = re.compile("[gf]e-\d+/\d+/\d+$")
+ifList = [ a for a in ltmp if pattern.match(a[1]) ]
 
 # 4.
 fields = ["ifIndex", "ifName"]
