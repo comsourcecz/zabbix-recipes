@@ -72,7 +72,7 @@ def snmpwalk(oid, hostname, community):
         l.append((str(res[3][0][0][-1]), (str(res[3][0][1]))))
     return l
 
-def find_ifDesc_from_ifIndex(hostname, ifIndex, community="publices"):
+def find_ifDesc_from_ifIndex(hostname, ifIndex, community="public"):
     errorIndication, errorStatus, errorIndex, varBinds = next(
         getCmd(SnmpEngine(),
                CommunityData(community),
