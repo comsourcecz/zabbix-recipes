@@ -34,8 +34,10 @@ def findsubstrings(s):
     la = s.split('.')
     lb = la[1:]
 
-    if '6' in lb: # looking for a delimiter. 6 for EX or 10 for SRX
+    if '6' in lb: # looking for a delimiter. 6 for EX or 8,10 for SRX
         i = lb.index('6')
+    elif '8' in lb:
+        i = lb.index('8')
     elif '10' in lb:
         i = lb.index('10')
     else:
