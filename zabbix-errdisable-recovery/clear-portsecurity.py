@@ -1,20 +1,28 @@
 import sys
 import netaddr
 
-mac = None
+path = "/etc/zabbix/alertscripts/zabbix-errdisable-recovery/"
 vault_file = "defaults/creds.yml"
 vault_password_file = "vault/vault_password"
+
+vault_file = path + vault_file
+vault_password_file = path + vault_password_file
+log_file = path + "errdisable-recovery.log"
+
+mac = None
 commands = []
 
 # sys.argv
 
-if len(sys.argv) == 3 :
+if len(sys.argv) == 4 :
     ifname = sys.argv[1]
     hostname = sys.argv[2]    
-elif len(sys.argv) == 4 :
+    eventid = sys.argv[3]
+elif len(sys.argv) == 5 :
     ifname = sys.argv[1]
     mac_str = sys.argv[2]
     hostname = sys.argv[3]
+    eventid = sys.argv[4]
 
     mac_str = netaddr.EUI(sys.argv[2])
     mac_str.dialect = netaddr.mac_cisco
@@ -46,13 +54,31 @@ with open(vault_password_file, "r") as fp:
     vault = Vault(password)
     vaultdata = vault.load(open(vault_file).read())
 
-# data = { 'user': val1, 'pass': val2}    
+# vaultdata = { 'user': val1, 'pass': val2, 'zabbix_url': val3, 'zabbix_user': val4, 'zabbix_passwd': val5}    
 
-# napalm
+# execute cli commands on a cisco switch using NAPALM
 import napalm
+from datetime import datetime
 driver = napalm.get_network_driver("ios")
 
 with driver(hostname, vaultdata['user'], vaultdata['pass']) as device:
     device.open()
-    res = device.cli(commands)                                                                                                   
-    print(res)                                                                                                                   
+    res = device.cli(commands)
+    with open(log_file, "a+") as fl:
+        logstr = str(datetime.now()) + ' - the following commands were executed on a {}:\n\t - '.format(hostname) + '\n\t - '.join(commands) + '\n'
+        fl.write(logstr)
+
+        # close the zabbix event using zabbixAPI 
+        from zabbix.api import ZabbixAPI, ZabbixAPIException
+        with ZabbixAPI(url=vaultdata['zabbix_url'], user=vaultdata['zabbix_user'], password=vaultdata['zabbix_passwd']) as zapi:                
+            try:
+                result = zapi.do_request('event.acknowledge', 
+                    {
+                        "eventids": eventid,
+                        "message": "PortSecurity Problem Resolved.",
+                        "action": 1
+                    })
+                if result['id'] == '1':
+                    fl.write("Zabbix event has been closed successfully")
+            except ZabbixAPIException as err:
+                fl.write(err)                                                                                                            
