@@ -61,24 +61,34 @@ import napalm
 from datetime import datetime
 driver = napalm.get_network_driver("ios")
 
-with driver(hostname, vaultdata['user'], vaultdata['pass']) as device:
-    device.open()
-    res = device.cli(commands)
-    with open(log_file, "a+") as fl:
-        logstr = str(datetime.now()) + ' - the following commands were executed on a {}:\n\t - '.format(hostname) + '\n\t - '.join(commands) + '\n'
-        fl.write(logstr)
+with driver(hostname, vaultdata['user'], vaultdata['pass']) as device:    
+    try:
+        device.open()
+        res = device.cli(commands)
+        with open(log_file, "a+") as fl:
+            logstr = str(datetime.now()) + ' - the following commands were executed on a {}:\n\t - '.format(hostname) + '\n\t - '.join(commands) + '\n'
+            fl.write(logstr)
 
-        # close the zabbix event using zabbixAPI 
-        from zabbix.api import ZabbixAPI, ZabbixAPIException
-        with ZabbixAPI(url=vaultdata['zabbix_url'], user=vaultdata['zabbix_user'], password=vaultdata['zabbix_passwd']) as zapi:                
-            try:
-                result = zapi.do_request('event.acknowledge', 
-                    {
-                        "eventids": eventid,
-                        "message": "PortSecurity Problem Resolved.",
-                        "action": 1
-                    })
-                if result['id'] == '1':
-                    fl.write("Zabbix event has been closed successfully")
-            except ZabbixAPIException as err:
-                fl.write(err)                                                                                                            
+        # closing the zabbix event using zabbixAPI 
+            from zabbix.api import ZabbixAPI, ZabbixAPIException
+            from time import sleep            
+            
+            sleep(10) # waiting for 10 secs in case next trap is still being processed
+            with ZabbixAPI(url=vaultdata['zabbix_url'], user=vaultdata['zabbix_user'], password=vaultdata['zabbix_passwd']) as zapi:                
+                try:
+                    result = zapi.do_request('event.acknowledge', 
+                        {
+                            "eventids": eventid,
+                            "message": "PortSecurity Problem Resolved.",
+                            "action": 1
+                        })
+                    if result['id'] == '1':
+                        fl.write("Zabbix event has been closed successfully")
+                except ZabbixAPIException as err:
+                    fl.write(err)
+
+    except ValueError as e:
+        print(e)
+
+    except:
+        print("Cant't connect to the {} switch").format(hostname)
