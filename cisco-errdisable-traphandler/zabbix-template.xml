@@ -115,7 +115,7 @@
     </templates>
     <triggers>
         <trigger>
-            <expression>{Template_Cisco_SW_Traps:ErrDisable.nodata(150)}=0</expression>
+            <expression>{Template_Cisco_PortSecurity:ErrDisable.nodata(150)}=0</expression>
             <recovery_mode>0</recovery_mode>
             <recovery_expression/>
             <name>ErrDisable: {ITEM.LASTVALUE}</name>
@@ -136,7 +136,7 @@
             </tags>
         </trigger>
         <trigger>
-            <expression>{Template_Cisco_SW_Traps:ErrRestrict.nodata(60)}=0</expression>
+            <expression>{Template_Cisco_PortSecurity:ErrRestrict.nodata(60)}=0</expression>
             <recovery_mode>0</recovery_mode>
             <recovery_expression/>
             <name>ErrRestrict: {ITEM.LASTVALUE}</name>
