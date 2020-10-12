@@ -136,7 +136,11 @@ if "548.0.1.1" in trapstr:
 elif "315.0.0.1" in trapstr:
     mode = "restrict"
     trapkeyname = "trapkeyname_restrict"
-    
+
+elif "315.0.0.2" in trapstr:
+    mode = "restrict_trunk"
+    trapkeyname = "trapkeyname_restrict"
+
 else:
     logging.error("Unknown trap. Discarding ...")
     exit(1)
@@ -188,6 +192,11 @@ if mode is "disable":
 
 elif mode is "restrict":
     ifName = traplist[7].strip('"')
+    mac = ':'.join(traplist[-7:-1]).strip('"')
+    logging.info("ifName = %s; mac = %s", ifName, mac)
+
+elif mode is "restrict_trunk":
+    ifName = traplist[5].strip('"')
     mac = ':'.join(traplist[-7:-1]).strip('"')
     logging.info("ifName = %s; mac = %s", ifName, mac)
     
