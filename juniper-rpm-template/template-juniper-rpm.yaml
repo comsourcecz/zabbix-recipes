@@ -1,0 +1,148 @@
+zabbix_export:
+  version: '5.2'
+  date: '2021-03-24T09:21:55Z'
+  groups:
+    -
+      name: Juniper
+    -
+      name: Templates
+  templates:
+    -
+      template: 'Template Juniper RPM'
+      name: 'Template Juniper RPM'
+      groups:
+        -
+          name: Juniper
+        -
+          name: Templates
+      applications:
+        -
+          name: RPM
+      items:
+        -
+          name: RPMDATA
+          type: EXTERNAL
+          key: 'discovery_juniper_rpm.py[{HOST.CONN},{$SNMP_COMMUNITY_CSO_RPM}]'
+          trends: '0'
+          status: DISABLED
+          value_type: TEXT
+          description: |
+            RPMUUID
+            RPMOWNER (Rpm-Bgp-Owner)
+            RPMTEST
+          applications:
+            -
+              name: RPM
+      discovery_rules:
+        -
+          name: 'Juniper RPM Discovery'
+          type: EXTERNAL
+          key: 'discovery_juniper_rpm.py[{HOST.CONN},{$SNMP_COMMUNITY_CSO}]'
+          delay: '300'
+          description: |
+            Discover all RPM (Real time performance monitoring) tests that is being performed on a Juniper Network Device
+            the scripts returns 3 macroses:
+            {#RPMUUID} = "3.73.83.80.49.6.84.69.83.84.49" - a part of OID uniq for an RPM
+            {#RPMOWNER} = "ISP1" - RPM Owner name
+            {#RPMTEST} = "Test1"  - RPM Probe name
+          item_prototypes:
+            -
+              name: 'RTT {#RPMOWNER} test {#RPMTEST}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2636.3.50.1.1.1.2.{#RPMUUID}.1'
+              key: 'delay["{#RPMUUID}"]'
+              delay: '30'
+              units: ms
+              applications:
+                -
+                  name: RPM
+              preprocessing:
+                -
+                  type: MULTIPLIER
+                  parameters:
+                    - '0.001'
+            -
+              name: 'Jitter {#RPMOWNER} test {#RPMTEST}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2636.3.50.1.1.1.2.{#RPMUUID}.2'
+              key: 'jitter["{#RPMUUID}"]'
+              delay: '30'
+              value_type: FLOAT
+              units: ms
+              applications:
+                -
+                  name: RPM
+              preprocessing:
+                -
+                  type: MULTIPLIER
+                  parameters:
+                    - '0.001'
+            -
+              name: 'PacketLoss {#RPMOWNER} test {#RPMTEST}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2636.3.50.1.2.1.4.{#RPMUUID}.2'
+              key: 'PacketLoss["{#RPMUUID}"]'
+              delay: '30'
+              value_type: FLOAT
+              units: '%'
+              applications:
+                -
+                  name: RPM
+              preprocessing:
+                -
+                  type: MULTIPLIER
+                  parameters:
+                    - '0.000001'
+              trigger_prototypes:
+                -
+                  expression: '{last()}>2'
+                  name: '{#RPMOWNER} PacketLoss: {ITEM.LASTVALUE}'
+                  priority: HIGH
+          graph_prototypes:
+            -
+              name: '{#RPMOWNER}:{#RPMTEST} GRAPH'
+              graph_items:
+                -
+                  color: 1A7C11
+                  item:
+                    host: 'Template Juniper RPM'
+                    key: 'delay["{#RPMUUID}"]'
+                -
+                  sortorder: '1'
+                  color: F63100
+                  item:
+                    host: 'Template Juniper RPM'
+                    key: 'jitter["{#RPMUUID}"]'
+                -
+                  sortorder: '2'
+                  color: 2774A4
+                  item:
+                    host: 'Template Juniper RPM'
+                    key: 'PacketLoss["{#RPMUUID}"]'
+      dashboards:
+        -
+          name: 'Juniper RPM Screen'
+          widgets:
+            -
+              type: GRAPH_PROTOTYPE
+              width: '24'
+              height: '5'
+              fields:
+                -
+                  type: INTEGER
+                  name: columns
+                  value: '1'
+                -
+                  type: INTEGER
+                  name: rows
+                  value: '1'
+                -
+                  type: INTEGER
+                  name: source_type
+                  value: '2'
+                -
+                  type: GRAPH_PROTOTYPE
+                  name: graphid
+                  value:
+                    name: '{#RPMOWNER}:{#RPMTEST} GRAPH'
+                    host: 'Template Juniper RPM'
