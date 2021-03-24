@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 """
  Zabbix discovery junper rpm tests external script
  this script is intended to find RPM (Real test perfomance monitoring) owners and tests out of a juniper network devices
@@ -34,24 +34,16 @@ def findsubstrings(s):
     la = s.split('.')
     lb = la[1:]
 
-    if '6' in lb: # looking for a delimiter. 6 for EX or 8,10 for SRX
-        i = lb.index('6')
-    elif '8' in lb:
-        i = lb.index('8')
-    elif '10' in lb:
-        i = lb.index('10')
-    else:
-        sys.stderr.write("delimiter nor 6 ot 10")
-        exit(0)
+    i = int(la[0]) # length of RPMOWNER string
 
-    l1 = lb[:i]
-    l2 = lb[i+1:]
-    param2 = ''.join([chr(int(i)) for i in l1])
-    param3 = ''.join([chr(int(i)) for i in l2])
+    l1 = lb[:i]    # get RPMOWNER part of array
+    l2 = lb[i+1:]  # get RPMTEST part of array
+    param2 = ''.join([chr(int(i)) for i in l1]) # convert number array to char array and join to string
+    param3 = ''.join([chr(int(i)) for i in l2]) # convert number array to char array and join to string
     return param2, param3
 
 
-eRR = '{ data: ["Error parsing arguments"]}\n'
+eRR = '{ data: ["Error parsing arguments"] }\n'
 
 if len(sys.argv)!=3:
     sys.stderr.write(eRR)
@@ -59,17 +51,18 @@ if len(sys.argv)!=3:
 
 hostname = sys.argv[1]
 community=sys.argv[2]
-jnxRpmResSumSent = "1.3.6.1.4.1.2636.3.50.1.2.1.2"
+jnxRpmResSumSent         = "1.3.6.1.4.1.2636.3.50.1.2.1.2"
+jnxRpmResultsSampleTable = "1.3.6.1.4.1.2636.3.50.1.2.1.2"
 l = []
 
-# init snmpwalk over jnxRpmResSumSent MIB Object
+# init snmpwalk over jnxRpmResultsSampleTable MIB Object
 varBind = nextCmd(SnmpEngine(), CommunityData(community), UdpTransportTarget((hostname, 161)),
-    ContextData(), ObjectType(ObjectIdentity(jnxRpmResSumSent)),
+    ContextData(), ObjectType(ObjectIdentity(jnxRpmResultsSampleTable)),
     lexicographicMode=False)
 
 # do snmmpwalk and collect an rpm specific substring
 for res in varBind:
-    s = str(res[3][0][0])[len(jnxRpmResSumSent)+1:-2]
+    s = str(res[3][0][0])[len(jnxRpmResultsSampleTable)+1:-2]
     l.append(s)
 
 # lets make values inside the list l uniq
@@ -79,22 +72,13 @@ u = set(l)
 jsonData=[]
 for param1 in u:
     d={}
-    param2, param3 = findsubstrings(param1)
-    d["{#RPMUUID}"] = param1
-    d["{#RPMOWNER}"] = param2
-    d["{#RPMTEST}"] = param3
-    jsonData.append(d)
+    if len(param1) > 0: # skip processing of empty responses
+      param2, param3 = findsubstrings(param1)
+      d["{#RPMUUID}"] = param1
+      d["{#RPMOWNER}"] = param2
+      d["{#RPMTEST}"] = param3
+      jsonData.append(d)
+
+jsonData = sorted(jsonData, key=lambda x: x['{#RPMOWNER}']+x['{#RPMTEST}'])
 
 print (json.dumps({"data": jsonData}, indent=4))
-
-
-
-
-
-
-
-
-
-
-
-
