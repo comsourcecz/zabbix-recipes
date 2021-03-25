@@ -1,0 +1,30 @@
+zabbix_export:
+  version: '5.2'
+  date: '2021-03-25T13:36:18Z'
+  media_types:
+    -
+      name: Twilio
+      type: SCRIPT
+      script_name: call.py
+      parameters:
+        - '{ALERT.SENDTO}'
+        - '{ALERT.SUBJECT}'
+        - '{ALERT.MESSAGE}'
+      message_templates:
+        -
+          event_source: TRIGGERS
+          operation_mode: PROBLEM
+          subject: 'Problem: {EVENT.NAME}'
+          message: |
+            Problem started at {EVENT.TIME} on {EVENT.DATE}
+            Problem name: {EVENT.NAME}
+            Host: {HOST.NAME}
+            Severity: {EVENT.SEVERITY}
+            Operational data: {EVENT.OPDATA}
+            Original problem ID: {EVENT.ID}
+            {TRIGGER.URL}
+        -
+          event_source: INTERNAL
+          operation_mode: PROBLEM
+          subject: 'Internal problem'
+          message: 'There is a problem with Zabbix server. Please check it ASAP.'
